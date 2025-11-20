@@ -1,4 +1,4 @@
-import { neon, sql as neonSql } from "@neondatabase/serverless"
+import { neon } from "@neondatabase/serverless"
 
 type SqlClient = {
   query: (query: string, params?: any[]) => Promise<Record<string, any>[]>
