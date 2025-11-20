@@ -149,15 +149,17 @@ export function TaskItem({ task, onTaskUpdated }: TaskItemProps) {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete this task?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This action permanently removes `{task.title}`. You can&apos;t undo this.
+                    This action permanently removes "{task.title}". You can't undo this.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel disabled={loading}>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel disabled={loading} className="flex-1">
+                    Cancel
+                  </AlertDialogCancel>
                   <AlertDialogAction
                     onClick={handleDelete}
                     disabled={loading}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    className="flex-1 bg-destructive text-white hover:bg-destructive/90"
                   >
                     Delete
                   </AlertDialogAction>
