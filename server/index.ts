@@ -4,7 +4,10 @@ import cors from "cors"
 import tasksRouter from "./routes/tasks"
 
 const app = express()
-const PORT = process.env.PORT || 3001
+// Parse PORT and ensure it's a valid number (Render provides PORT as a number)
+const PORT = process.env.PORT 
+  ? (Number.parseInt(process.env.PORT, 10) || 3001)
+  : 3001
 
 // Middleware
 app.use(cors())
