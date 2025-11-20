@@ -7,7 +7,7 @@ const router = express.Router()
 // GET all tasks
 router.get("/", async (_req: Request, res: Response) => {
   try {
-    const tasks = await sql("SELECT * FROM tasks ORDER BY created_at DESC")
+    const tasks = await sql.query("SELECT * FROM tasks ORDER BY created_at DESC")
     res.json(tasks)
   } catch (error: any) {
     console.error("Error fetching tasks:", error)
@@ -27,7 +27,7 @@ router.get("/", async (_req: Request, res: Response) => {
 router.get("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params
-    const tasks = await sql("SELECT * FROM tasks WHERE id = $1", [Number.parseInt(id)])
+    const tasks = await sql.query("SELECT * FROM tasks WHERE id = $1", [Number.parseInt(id)])
 
     if (tasks.length === 0) {
       return res.status(404).json({ error: "Task not found" })
@@ -49,7 +49,7 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Title is required" })
     }
 
-    const tasks = await sql("INSERT INTO tasks (title, description, priority) VALUES ($1, $2, $3) RETURNING *", [
+    const tasks = await sql.query("INSERT INTO tasks (title, description, priority) VALUES ($1, $2, $3) RETURNING *", [
       title,
       description || null,
       priority,
@@ -94,7 +94,7 @@ router.put("/:id", async (req: Request, res: Response) => {
     values.push(Number.parseInt(id))
 
     const query = `UPDATE tasks SET ${updates.join(", ")} WHERE id = $${paramCount} RETURNING *`
-    const tasks = await sql(query, values)
+    const tasks = await sql.query(query, values)
 
     if (tasks.length === 0) {
       return res.status(404).json({ error: "Task not found" })
@@ -111,7 +111,7 @@ router.put("/:id", async (req: Request, res: Response) => {
 router.delete("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params
-    const tasks = await sql("DELETE FROM tasks WHERE id = $1 RETURNING *", [Number.parseInt(id)])
+    const tasks = await sql.query("DELETE FROM tasks WHERE id = $1 RETURNING *", [Number.parseInt(id)])
 
     if (tasks.length === 0) {
       return res.status(404).json({ error: "Task not found" })
