@@ -100,7 +100,7 @@ const createNeonClient = (connectionString: string): SqlClient => {
         // Try to use sql.query() method - it should exist based on error message
         if (sqlAny.query && typeof sqlAny.query === 'function') {
           const result = await sqlAny.query(queryString, params)
-          return Array.isArray(result) ? result : (result?.rows || [])
+          return Array.isArray(result) ? result : ((result as any)?.rows || [])
         }
         
         // If query() method doesn't exist, try calling sql directly with query string
@@ -130,7 +130,7 @@ const createNeonClient = (connectionString: string): SqlClient => {
         })
         
         const result = await sql`${processedQuery}`
-        return Array.isArray(result) ? result : (result?.rows || [])
+        return Array.isArray(result) ? result : ((result as any)?.rows || [])
       } catch (error: any) {
         console.error("Database query error:", error?.message || error)
         throw new Error(`Database error: ${error?.message || String(error)}`)
