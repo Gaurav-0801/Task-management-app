@@ -12,7 +12,9 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "test:watch": "jest --watch",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "db:init": "ts-node --project tsconfig.server.json scripts/init-neon-db.ts",
+    "db:migrate": "npm run db:init"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

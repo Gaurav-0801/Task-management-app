@@ -86,12 +86,45 @@ class InMemorySqlClient implements SqlClient {
   }
 }
 
+// Wrapper for Neon client to match SqlClient interface
+const createNeonClient = (connectionString: string): SqlClient => {
+  const client = neon<false, false>(connectionString)
+  
+  return {
+    query: async (query: string, params: any[] = []): Promise<Record<string, any>[]> => {
+      try {
+        // Neon serverless client is callable and returns results as an array
+        const result = await client(query, params)
+        // Neon returns an array of rows directly
+        if (Array.isArray(result)) {
+          return result
+        }
+        // Fallback: if result is an object with rows property
+        if (result && typeof result === 'object' && 'rows' in result) {
+          return (result as any).rows || []
+        }
+        // If result is a single object, wrap it in an array
+        if (result && typeof result === 'object') {
+          return [result]
+        }
+        return []
+      } catch (error: any) {
+        console.error("Database query error:", error?.message || error)
+        // Re-throw with more context
+        throw new Error(`Database error: ${error?.message || String(error)}`)
+      }
+    }
+  }
+}
+
 const sql: SqlClient = process.env.DATABASE_URL
-  ? (neon<false, false>(process.env.DATABASE_URL) as SqlClient)
+  ? createNeonClient(process.env.DATABASE_URL)
   : new InMemorySqlClient()
 
 if (!process.env.DATABASE_URL) {
   console.warn("DATABASE_URL is not set. Using in-memory data store for development.")
+} else {
+  console.log("Using Neon database connection")
 }
 
 export default sql

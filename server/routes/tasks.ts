@@ -7,11 +7,19 @@ const router = express.Router()
 // GET all tasks
 router.get("/", async (_req: Request, res: Response) => {
   try {
-    const tasks = await sql.query("SELECT * FROM tasks ORDER BY created_at DESC")
+    const tasks = await sql("SELECT * FROM tasks ORDER BY created_at DESC")
     res.json(tasks)
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching tasks:", error)
-    res.status(500).json({ error: "Failed to fetch tasks" })
+    const errorMessage = error?.message || String(error)
+    // Check if it's a table doesn't exist error
+    if (errorMessage.includes("does not exist") || errorMessage.includes("relation") || errorMessage.includes("table")) {
+      return res.status(500).json({ 
+        error: "Database table not found. Please run the migration script to create the tasks table.",
+        details: errorMessage 
+      })
+    }
+    res.status(500).json({ error: "Failed to fetch tasks", details: errorMessage })
   }
 })
 
@@ -19,7 +27,7 @@ router.get("/", async (_req: Request, res: Response) => {
 router.get("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params
-    const tasks = await sql.query("SELECT * FROM tasks WHERE id = $1", [Number.parseInt(id)])
+    const tasks = await sql("SELECT * FROM tasks WHERE id = $1", [Number.parseInt(id)])
 
     if (tasks.length === 0) {
       return res.status(404).json({ error: "Task not found" })
@@ -41,7 +49,7 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Title is required" })
     }
 
-    const tasks = await sql.query("INSERT INTO tasks (title, description, priority) VALUES ($1, $2, $3) RETURNING *", [
+    const tasks = await sql("INSERT INTO tasks (title, description, priority) VALUES ($1, $2, $3) RETURNING *", [
       title,
       description || null,
       priority,
@@ -86,7 +94,7 @@ router.put("/:id", async (req: Request, res: Response) => {
     values.push(Number.parseInt(id))
 
     const query = `UPDATE tasks SET ${updates.join(", ")} WHERE id = $${paramCount} RETURNING *`
-    const tasks = await sql.query(query, values)
+    const tasks = await sql(query, values)
 
     if (tasks.length === 0) {
       return res.status(404).json({ error: "Task not found" })
@@ -103,7 +111,7 @@ router.put("/:id", async (req: Request, res: Response) => {
 router.delete("/:id", async (req: Request, res: Response) => {
   try {
     const { id } = req.params
-    const tasks = await sql.query("DELETE FROM tasks WHERE id = $1 RETURNING *", [Number.parseInt(id)])
+    const tasks = await sql("DELETE FROM tasks WHERE id = $1 RETURNING *", [Number.parseInt(id)])
 
     if (tasks.length === 0) {
       return res.status(404).json({ error: "Task not found" })

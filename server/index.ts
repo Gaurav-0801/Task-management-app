@@ -2,6 +2,7 @@ import "dotenv/config"
 import express from "express"
 import cors from "cors"
 import tasksRouter from "./routes/tasks"
+import { initializeDatabase } from "./config/init-db"
 
 const app = express()
 // Parse PORT and ensure it's a valid number (Render provides PORT as a number)
@@ -21,9 +22,20 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok" })
 })
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
+// Initialize database and start server
+async function startServer() {
+  // Initialize database (creates table if it doesn't exist)
+  await initializeDatabase()
+
+  // Start server
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`)
+  })
+}
+
+startServer().catch((error) => {
+  console.error("Failed to start server:", error)
+  process.exit(1)
 })
 
 export default app
