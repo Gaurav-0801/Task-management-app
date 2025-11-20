@@ -88,59 +88,51 @@ class InMemorySqlClient implements SqlClient {
 
 // Wrapper for Neon client to match SqlClient interface
 const createNeonClient = (connectionString: string): SqlClient => {
-  const client = neon(connectionString)
+  const sql = neon(connectionString)
   
   return {
     query: async (queryString: string, params: any[] = []): Promise<Record<string, any>[]> => {
       try {
-        // Neon client uses template literals, so we need to convert our parameterized query
-        // We'll replace $1, $2, etc. with actual values in the query string
-        // This is a simplified approach - for production, consider using a query builder
+        // Neon requires sql.query() for parameterized queries with $1, $2, etc.
+        // The sql object from neon() should have a query method
+        const sqlAny = sql as any
         
+        // Try to use sql.query() method - it should exist based on error message
+        if (sqlAny.query && typeof sqlAny.query === 'function') {
+          const result = await sqlAny.query(queryString, params)
+          return Array.isArray(result) ? result : (result?.rows || [])
+        }
+        
+        // If query() method doesn't exist, try calling sql directly with query string
+        // For queries without parameters
+        if (!params || params.length === 0) {
+          const result = await sql`${queryString}`
+          return Array.isArray(result) ? result : (result?.rows || [])
+        }
+        
+        // For parameterized queries without query() method, we need to manually substitute
+        // This is not ideal but works as a fallback
         let processedQuery = queryString
-        if (params && params.length > 0) {
-          // Replace $1, $2, etc. with the actual parameter values
-          // Escape single quotes in string values
-          params.forEach((param, index) => {
-            const placeholder = `$${index + 1}`
-            let value: string
-            if (param === null || param === undefined) {
-              value = 'NULL'
-            } else if (typeof param === 'string') {
-              // Escape single quotes and wrap in quotes
-              value = `'${param.replace(/'/g, "''")}'`
-            } else if (typeof param === 'number' || typeof param === 'boolean') {
-              value = String(param)
-            } else {
-              value = `'${JSON.stringify(param).replace(/'/g, "''")}'`
-            }
-            // Replace $1, $2, etc. (but not $10, $11, etc. when we're replacing $1)
-            const regex = new RegExp(`\\$${index + 1}(?![0-9])`, 'g')
-            processedQuery = processedQuery.replace(regex, value)
-          })
-        }
+        params.forEach((param, index) => {
+          const placeholder = `$${index + 1}`
+          let value: string
+          if (param === null || param === undefined) {
+            value = 'NULL'
+          } else if (typeof param === 'string') {
+            value = `'${param.replace(/'/g, "''")}'`
+          } else if (typeof param === 'number' || typeof param === 'boolean') {
+            value = String(param)
+          } else {
+            value = `'${JSON.stringify(param).replace(/'/g, "''")}'`
+          }
+          const regex = new RegExp(`\\$${index + 1}(?![0-9])`, 'g')
+          processedQuery = processedQuery.replace(regex, value)
+        })
         
-        // Execute the query - Neon client supports being called as a function
-        // We'll use the client directly with the processed query
-        // Type assertion needed because TypeScript types expect template literals
-        const result = await (client as any)(processedQuery)
-        
-        // Neon returns an array of rows directly
-        if (Array.isArray(result)) {
-          return result
-        }
-        // Fallback: if result is an object with rows property
-        if (result && typeof result === 'object' && 'rows' in result) {
-          return (result as any).rows || []
-        }
-        // If result is a single object, wrap it in an array
-        if (result && typeof result === 'object') {
-          return [result]
-        }
-        return []
+        const result = await sql`${processedQuery}`
+        return Array.isArray(result) ? result : (result?.rows || [])
       } catch (error: any) {
         console.error("Database query error:", error?.message || error)
-        // Re-throw with more context
         throw new Error(`Database error: ${error?.message || String(error)}`)
       }
     }
