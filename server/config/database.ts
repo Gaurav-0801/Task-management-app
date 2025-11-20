@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless"
+import { neon, sql as neonSql } from "@neondatabase/serverless"
 
 type SqlClient = {
   query: (query: string, params?: any[]) => Promise<Record<string, any>[]>
@@ -88,13 +88,43 @@ class InMemorySqlClient implements SqlClient {
 
 // Wrapper for Neon client to match SqlClient interface
 const createNeonClient = (connectionString: string): SqlClient => {
-  const client = neon<false, false>(connectionString)
+  const client = neon(connectionString)
   
   return {
-    query: async (query: string, params: any[] = []): Promise<Record<string, any>[]> => {
+    query: async (queryString: string, params: any[] = []): Promise<Record<string, any>[]> => {
       try {
-        // Neon serverless client is callable and returns results as an array
-        const result = await client(query, params)
+        // Neon client uses template literals, so we need to convert our parameterized query
+        // We'll replace $1, $2, etc. with actual values in the query string
+        // This is a simplified approach - for production, consider using a query builder
+        
+        let processedQuery = queryString
+        if (params && params.length > 0) {
+          // Replace $1, $2, etc. with the actual parameter values
+          // Escape single quotes in string values
+          params.forEach((param, index) => {
+            const placeholder = `$${index + 1}`
+            let value: string
+            if (param === null || param === undefined) {
+              value = 'NULL'
+            } else if (typeof param === 'string') {
+              // Escape single quotes and wrap in quotes
+              value = `'${param.replace(/'/g, "''")}'`
+            } else if (typeof param === 'number' || typeof param === 'boolean') {
+              value = String(param)
+            } else {
+              value = `'${JSON.stringify(param).replace(/'/g, "''")}'`
+            }
+            // Replace $1, $2, etc. (but not $10, $11, etc. when we're replacing $1)
+            const regex = new RegExp(`\\$${index + 1}(?![0-9])`, 'g')
+            processedQuery = processedQuery.replace(regex, value)
+          })
+        }
+        
+        // Execute the query - Neon client supports being called as a function
+        // We'll use the client directly with the processed query
+        // Type assertion needed because TypeScript types expect template literals
+        const result = await (client as any)(processedQuery)
+        
         // Neon returns an array of rows directly
         if (Array.isArray(result)) {
           return result

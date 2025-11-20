@@ -8,9 +8,7 @@
  */
 
 import "dotenv/config"
-import { neon } from "@neondatabase/serverless"
-import * as fs from "fs"
-import * as path from "path"
+import sql from "../server/config/database"
 
 async function initDatabase() {
   const databaseUrl = process.env.DATABASE_URL
@@ -22,43 +20,58 @@ async function initDatabase() {
   }
 
   console.log("🔌 Connecting to Neon database...")
-  const sql = neon<false, false>(databaseUrl)
 
   try {
-    // Read the SQL initialization file
-    const sqlPath = path.join(__dirname, "init-db.sql")
-    const sqlContent = fs.readFileSync(sqlPath, "utf-8")
+    // Check if tasks table exists
+    const checkTable = await sql.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name = 'tasks'
+    `)
     
-    // Split by semicolons and execute each statement
-    const statements = sqlContent
-      .split(";")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0 && !s.startsWith("--"))
+    const tableExists = Array.isArray(checkTable) && checkTable.length > 0
 
-    console.log(`📝 Executing ${statements.length} SQL statements...`)
-
-    for (const statement of statements) {
-      if (statement.trim()) {
-        try {
-          await sql(statement)
-          console.log(`✅ Executed: ${statement.substring(0, 50)}...`)
-        } catch (error: any) {
-          // Ignore "already exists" errors
-          if (error?.message?.includes("already exists") || error?.message?.includes("duplicate")) {
-            console.log(`ℹ️  Skipped (already exists): ${statement.substring(0, 50)}...`)
-          } else {
-            throw error
-          }
-        }
-      }
+    if (tableExists) {
+      console.log("✅ Tasks table already exists")
+      return
     }
 
+    console.log("📝 Creating tasks table...")
+
+    // Create tasks table
+    await sql.query(`
+      CREATE TABLE IF NOT EXISTS tasks (
+        id SERIAL PRIMARY KEY,
+        title VARCHAR(255) NOT NULL,
+        description TEXT,
+        status VARCHAR(50) DEFAULT 'pending',
+        priority VARCHAR(50) DEFAULT 'medium',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    console.log("📝 Creating indexes...")
+
+    // Create indexes
+    await sql.query(`
+      CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)
+    `)
+
+    await sql.query(`
+      CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority)
+    `)
+
     // Verify table was created
-    const result = await sql("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'tasks'")
+    const verifyResult = await sql.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name = 'tasks'
+    `)
     
-    if (Array.isArray(result) && result.length > 0) {
-      console.log("✅ Tasks table verified successfully!")
-    } else if (result && typeof result === 'object' && 'rows' in result && (result as any).rows?.length > 0) {
+    if (Array.isArray(verifyResult) && verifyResult.length > 0) {
       console.log("✅ Tasks table verified successfully!")
     } else {
       console.log("⚠️  Warning: Could not verify tasks table creation")
@@ -66,7 +79,7 @@ async function initDatabase() {
 
     console.log("🎉 Database initialization complete!")
   } catch (error: any) {
-    console.error("❌ Error initializing database:", error.message)
+    console.error("❌ Error initializing database:", error?.message || error)
     console.error(error)
     process.exit(1)
   }
