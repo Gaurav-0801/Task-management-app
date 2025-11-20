@@ -8,7 +8,7 @@
  */
 
 import "dotenv/config"
-import sql from "../server/config/database"
+import { neon } from "@neondatabase/serverless"
 
 async function initDatabase() {
   const databaseUrl = process.env.DATABASE_URL
@@ -20,15 +20,16 @@ async function initDatabase() {
   }
 
   console.log("🔌 Connecting to Neon database...")
+  const sql = neon<false, false>(databaseUrl)
 
   try {
-    // Check if tasks table exists
-    const checkTable = await sql.query(`
+    // Check if tasks table exists using template literal
+    const checkTable = await sql`
       SELECT table_name 
       FROM information_schema.tables 
       WHERE table_schema = 'public' 
       AND table_name = 'tasks'
-    `)
+    `
     
     const tableExists = Array.isArray(checkTable) && checkTable.length > 0
 
@@ -39,8 +40,8 @@ async function initDatabase() {
 
     console.log("📝 Creating tasks table...")
 
-    // Create tasks table
-    await sql.query(`
+    // Create tasks table using template literal
+    await sql`
       CREATE TABLE IF NOT EXISTS tasks (
         id SERIAL PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
@@ -50,26 +51,26 @@ async function initDatabase() {
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `)
+    `
 
     console.log("📝 Creating indexes...")
 
-    // Create indexes
-    await sql.query(`
+    // Create indexes using template literals
+    await sql`
       CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)
-    `)
+    `
 
-    await sql.query(`
+    await sql`
       CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority)
-    `)
+    `
 
     // Verify table was created
-    const verifyResult = await sql.query(`
+    const verifyResult = await sql`
       SELECT table_name 
       FROM information_schema.tables 
       WHERE table_schema = 'public' 
       AND table_name = 'tasks'
-    `)
+    `
     
     if (Array.isArray(verifyResult) && verifyResult.length > 0) {
       console.log("✅ Tasks table verified successfully!")
