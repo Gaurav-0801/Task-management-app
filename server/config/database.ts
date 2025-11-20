@@ -107,7 +107,7 @@ const createNeonClient = (connectionString: string): SqlClient => {
         // For queries without parameters
         if (!params || params.length === 0) {
           const result = await sql`${queryString}`
-          return Array.isArray(result) ? result : (result?.rows || [])
+          return Array.isArray(result) ? result : ((result as any)?.rows || [])
         }
         
         // For parameterized queries without query() method, we need to manually substitute
