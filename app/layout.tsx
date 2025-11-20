@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 
+// Using Inter font (compatible with Next.js 14)
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
